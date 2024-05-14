@@ -1,0 +1,17 @@
+path: ../data
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 3
+names: 
+  0: gun
+  1: person
+  2: person with a gun
+
+roboflow:
+  workspace: aprs
+  project: armed-person-recognition
+  version: 2
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/aprs/armed-person-recognition/dataset/2
