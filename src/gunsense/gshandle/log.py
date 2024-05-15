@@ -1,68 +1,50 @@
 import logging
 import logging.handlers as loghandlers
 from datetime import datetime
-from enum import Enum
 from cv2 import imwrite
 from cv2.typing import MatLike
-from functools import partial, partialmethod 
 from pathlib import Path
-import os, sys
-from ultralytics.engine.results import Results
+import os
 
+DEFAULT_LOG_DIR = Path(__file__).parent / 'log'
+DEFAULT_LOG_PATH = DEFAULT_LOG_DIR / 'gs.log'
+ONE_MEGABYTE = 1_000_000
 
-def validate_path(path: Path, expected_file, create_notfound):
-    if path.exists():
-        return True
-    else:
-        if create_notfound:
-            path.touch()
+if not DEFAULT_LOG_DIR.exists(): DEFAULT_LOG_DIR.mkdir(parents=True, exist_ok=True)
+if not DEFAULT_LOG_PATH.exists(): DEFAULT_LOG_PATH.touch()
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
 
+class GSFileHandler(loghandlers.RotatingFileHandler):
 
-class GsFileLog(loghandlers.RotatingFileHandler):
-
-    def __init__(self, path):
+    def __init__(self, path = DEFAULT_LOG_PATH):
         super().__init__(
             filename=path,
             mode='w',
-            maxBytes=0,
+            maxBytes=ONE_MEGABYTE,
             backupCount=5
         )
-        
 
-class GsStdoutLog(logging.StreamHandler):
-
-    def __init__(self):
-        super().__init__(sys.stdout)
-
-
-class GsImgLog():
+class GSImgHandler():
     
-    def __init__(self, path: Path, discard_old=True, use_jpeg=False):
+    def __init__(self, path = DEFAULT_LOG_DIR, use_jpeg=False):
         self.path = path
         self.use_jpeg = use_jpeg
         self.recent = None
-        if discard_old: self._discard_old()
 
 
-    def _discard_old(self):
-        # Remove all log-like files in this path
-        for file in self.path.glob('*.log.*'):
-            file.unlink(True)
+    def log(self, img: MatLike):
 
-
-    def log(self, results: Results):
-
-        img = results[0].plot()
+        ext = '.png'
         if self.use_jpeg:
             ext = '.jpeg'
             
-
         # Get the current directory, change to img log path
-        before = os.curdir()
-        os.chdir(self.path)
+        before = os.curdir
+        os.chdir(fr"{str(self.path)}")
 
         # Write img to log directory with current timestamp as filename 
-        name = self._get_stamp() + ".png"
+        name = self._get_stamp() + ext
         imwrite(name, img)
         self.recent = self.path / name
 
@@ -79,50 +61,42 @@ class GsImgLog():
         return datetime.now().strftime("%Y-%m-%d %H%M%S")
 
 
-class GSMasterLogger(logging.Logger):
+class GSLogger(logging.Logger):
 
-    class Concern(Enum):
-        GS_MODERATE    =   7
-        GS_HEIGHTENED  =   8
-        GS_CRITICAL    =   9
+    def __init__(self, log_dir = DEFAULT_LOG_DIR):
 
-
-    def __init__(self, log_path: Path = None):
-
-        if not log_path: self.log_path = Path('')
+        self.log_dir = log_dir
+        self.file_log_handle = None
+        self.img_log_handle = None
+        super().__init__(__name__, level=logging.INFO)
+        self._acquire()
 
 
-    def _set_levels(self):
-        logging.addLevelName(self.Concern.GS_MODERATE, "GS_MODERATE")
-        logging.addLevelName(self.Concern.GS_HEIGHTENED, "GS_HEIGHTENED")
-        logging.addLevelName(self.Concern.GS_CRITICAL, "GS_CRITICAL")
-        logging.Logger.gsmoderate = partialmethod(
-            logging.Logger.log, logging.GS_MODERATE
+    def new_file_logger(self):
+
+        path = self.log_dir/'gs.log'
+
+        logging.basicConfig(filename=path, level=logging.INFO)
+
+        if self.file_log_handle: self.file_log_handle.close()
+
+        formatting = logging.Formatter(
+            '%(asctime)s | %(levelname)s: %(message)s'
         )
-        logging.Logger.gsheightened = partialmethod(
-            logging.Logger.log, logging.GS_HEIGHTENED
-        )
-        logging.Logger.gscritical = partialmethod(
-            logging.Logger.log, logging.GS_CRITICAL
-        )
-        logging.trace = partial(logging.log, logging.GS_MODERATE)
-        logging.trace = partial(logging.log, logging.GS_HEIGHTENED)
-        logging.trace = partial(logging.log, logging.GS_CRITICAL)
+        self.file_log_handle = GSFileHandler(path)
+        self.file_log_handle.formatter = formatting
+        self.addHandler(self.file_log_handle)
 
 
-    def new_file_logger(self, path):
-        logger = GsFileLog(path)
-        self.handlers.append(logger)
+    def new_img_logger(self):
+        self.img_log_handle = GSImgHandler(self.log_dir)
 
 
-    def new_img_logger(self, path):
-        logger = GsImgLog
-        self.handlers.append(logger)
-
-
-    def toggle_stdout(self):
-        pass
+    def close(self):
+        self.file_log_handle.close()
 
 
     def _acquire(self):
-        pass
+        self.setLevel(logging.INFO)
+        self.new_file_logger()
+        self.new_img_logger()

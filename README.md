@@ -11,6 +11,11 @@ Gunsense is licensed under ___; a non-restrictive, copy-left license.
 This project CANNOT be relied upon for realworld surveillance situations.
 As it stands, this code is intended for hobby and research purposes. 
 
+## Requirements
+
+1. A CUDA-compatible GPU for effective processing capabilities
+2. Python >= 3.10
+
 ## Setup
 
 Gunsense can be installed in a few easy steps.
