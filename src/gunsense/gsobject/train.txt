@@ -1,7 +1,7 @@
 self.detector.train(data='data/data.yaml',
-                            epochs=25,
-                            time=2,
-                            batch=-1,
-                            save=True,
-                            workers=10,
-                            device=0)
+                    epochs=25,
+                    time=2,
+                    batch=-1,
+                    save=True,
+                    workers=10,
+                    device=0)

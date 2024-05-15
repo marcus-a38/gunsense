@@ -1,6 +1,5 @@
 import cv2
 from pathlib import Path
-from time import time
 from cv2.typing import MatLike
 from typing import Callable
 
@@ -20,8 +19,6 @@ class VideoPlayer:
         except Exception as e:
             raise Exception("Issue instantiating video player. Details:\n"+e)
         
-        
-
         if fps is not None:
             valid_fps = fps < 60 and fps >= 0.5
             assert valid_fps, f"Provided framerate `{fps}` is too high or low."
@@ -35,15 +32,12 @@ class VideoPlayer:
             ret, frame = player.read()
             if not ret: break
             handler(frame)
-
         
         handler(frame=None, end=True)
         player.release()
 
 
     def __validate_path(self, path: str):
-
-        print(path)
 
         # Assume live feed from device
         if path is None:

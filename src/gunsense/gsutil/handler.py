@@ -1,4 +1,3 @@
-import logging
 from gshandle import VideoPlayer, GSLogger
 from gsobject import ObjectDetector
 from time import time
